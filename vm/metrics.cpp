@@ -225,8 +225,6 @@ namespace rubinius {
         row[0] = strdup(buf);
         influxdb_series_add_points(series, row);
         influxdb_write_serie(influxdb_client_, series);
-
-        free(row);
       }
     }
 
