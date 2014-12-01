@@ -25,6 +25,7 @@
 
 #include <fcntl.h>
 #include <stdint.h>
+#include <string.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -188,6 +189,76 @@ namespace rubinius {
       initialize();
     }
 
+    InfluxDbEmitter::InfluxDbEmitter(MetricsMap& map, std::string server,
+                                     std::string db, std::string user,
+                                     std::string passwd)
+      : MetricsEmitter()
+      , metrics_map_(map)
+      , server_(server)
+      , db_(db)
+      , user_(user)
+      , passwd_(passwd)
+    {
+      influxdb_client_ = influxdb_client_new(server_.c_str(), user_.c_str(),
+                                             passwd_.c_str(), db_.c_str(), 0);
+      initialize();
+    }
+
+    InfluxDbEmitter::~InfluxDbEmitter() {
+      cleanup();
+    }
+
+#define RBX_METRICS_INFLUXDB_BUFLEN   256
+
+    void InfluxDbEmitter::send_metrics() {
+      for(MetricsMap::iterator i = metrics_map_.begin();
+          i != metrics_map_.end();
+          ++i)
+      {
+        s_influxdb_series *series = influxdb_series_map_[(*i)->first];
+        char **row = (char **) malloc(sizeof (char *));
+
+        char buf[RBX_METRICS_STATSD_BUFLEN];
+        snprintf(buf, RBX_METRICS_STATSD_BUFLEN, "%lld", 
+                                (long long unsigned int)(*i)->second);
+
+        row[0] = strdup(buf);
+        influxdb_series_add_points(series, row);
+        influxdb_write_serie(influxdb_client_, series);
+
+        free(row);
+      }
+    }
+
+    void InfluxDbEmitter::initialize() {
+      for(MetricsMap::iterator i = metrics_map_.begin();
+          i != metrics_map_.end();
+          ++i)
+      {
+        char *series_name = (char *) (*i)->first.c_str();
+        s_influxdb_series *series = influxdb_series_create(series_name, NULL);
+        influxdb_series_add_colums(series, "value");
+
+        influxdb_series_map_[(*i)->first] = series;
+      }
+    }
+
+    void InfluxDbEmitter::cleanup() {
+      influxdb_client_free(influxdb_client_);
+
+      for (auto i = influxdb_series_map_.begin();
+           i != influxdb_series_map_.end();
+           ++i)
+      {
+        influxdb_series_free(i->second, NULL);
+      }
+    }
+
+    void InfluxDbEmitter::reinit() {
+      cleanup();
+      initialize();
+    }
+
     Metrics::Metrics(STATE)
       : AuxiliaryThread()
       , shared_(state->shared())
@@ -206,6 +277,14 @@ namespace rubinius {
         emitter_ = new StatsDEmitter(metrics_map_,
             shared_.config.system_metrics_statsd_server.value,
             shared_.config.system_metrics_statsd_prefix.value);
+      }
+
+      if(!shared_.config.system_metrics_target.value.compare("influxdb")) {
+        emitter_ = new InfluxDbEmitter(metrics_map_,
+            shared_.config.system_metrics_influxdb_server.value,
+            shared_.config.system_metrics_influxdb_db.value,
+            shared_.config.system_metrics_influxdb_user.value,
+            shared_.config.system_metrics_influxdb_passwd.value);
       }
 
       shared_.auxiliary_threads()->register_thread(this);

@@ -195,13 +195,24 @@ Rubinius::ConfigurationVariables.define do |c|
       "Number of milliseconds between aggregation of VM metrics"
 
     s.vm_variable "metrics.target", "none",
-      "Location to send metrics every interval: 'statsd', 'disk'"
+      "Location to send metrics every interval: 'statsd', 'disk', 'influxdb'"
 
     s.vm_variable "metrics.statsd.server", "localhost:8125",
       "The [host:]port of the StatsD server"
 
     s.vm_variable "metrics.statsd.prefix", "host.$nodename.app.rbx",
       "Prefix for StatsD metric names"
+
+    s.vm_variable "metrics.influxdb.server", "localhost:8086",
+      "The host:port of the InfluDb server"
+
+    s.vm_variable "metrics.influxdb.db", "rbx",
+      "InfluxDb database"
+
+    s.vm_variable "metrics.influxdb.user", "root",
+      "InfluxDb user"
+
+    s.vm_variable "metrics.influxdb.passwd", "root",
+      "InfluxDb passwd"
   end
 end
-

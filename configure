@@ -1311,6 +1311,10 @@ int main() { return tgetnum(""); }
     if has_header("valgrind/valgrind.h")
       @defines << "HAVE_VALGRIND_H"
     end
+
+    if has_header("influxdb/influxdb.h")
+      @defines << "HAVE_INFLUXDB_H"
+    end
   end
 
   def strerror_r_returns_char_pointer

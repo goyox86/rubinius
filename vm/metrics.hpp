@@ -12,7 +12,13 @@
 
 #include <string>
 #include <vector>
+#include <map>
 
+#ifdef HAVE_INFLUXDB_H
+#include <influxdb/influxdb.h>
+#endif
+
+#include <fstream>
 namespace rubinius {
   class VM;
   class State;
@@ -366,6 +372,26 @@ namespace rubinius {
     public:
       StatsDEmitter(MetricsMap& map, std::string server, std::string prefix);
       virtual ~StatsDEmitter();
+
+      void send_metrics();
+      void initialize();
+      void cleanup();
+      void reinit();
+    };
+
+    class InfluxDbEmitter : public MetricsEmitter {
+      MetricsMap& metrics_map_;
+      std::string server_;
+      std::string db_;
+      std::string user_;
+      std::string passwd_;
+      s_influxdb_client *influxdb_client_;
+      std::map<std::string, s_influxdb_series*> influxdb_series_map_;
+
+    public:
+      InfluxDbEmitter(MetricsMap& map, std::string server, std::string database,
+                      std::string user, std::string passwd);
+      virtual ~InfluxDbEmitter();
 
       void send_metrics();
       void initialize();
